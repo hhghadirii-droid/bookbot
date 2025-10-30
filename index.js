@@ -66,9 +66,10 @@ bot.on('message', async (msg) => {
   }
 
   // 💬 پاسخ به وقتی کسی گفت "ربات"
-  if (msg.text && /ر\s*[\u200c]?\s*با\s*[\u200c]?\s*ت/.test(msg.text.trim())) {
-    bot.sendMessage(chatId, 'جانم 😊 نوبت می‌خوای؟' + signature);
-  }
+  if (msg.text && msg.text.replace(/\s|‌/g, '').includes('ربات')) {
+  bot.sendMessage(chatId, 'جانم 😊 نوبت می‌خوای؟' + signature);
+}
+
 });
 
 // 🎤 دستور "next"
