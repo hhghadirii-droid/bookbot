@@ -1,7 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 
-// 🧩 خواندن توکن از متغیر محیطی
+// 🧩 خواندن توکن از متغیر محیطی (امن)
 const token = process.env.TOKEN;
 if (!token) {
   console.error('❌ خطا: متغیر محیطی TOKEN تنظیم نشده است.');
@@ -63,68 +63,14 @@ bot.on('message', async (msg) => {
       queues[chatId].push(msg.from);
       bot.sendMessage(chatId, `✅ ${msg.from.first_name} به صف نوبت اضافه شد.` + signature);
     }
-    return;
   }
 
-  // 📦 متن پیام کاربر
-  const text = msg.text?.trim();
-
-  if (!text) return;
-
-  // 🎤 next
-  if (/^\/?next$/i.test(text)) {
-    if (!allowedOwners.includes(senderId)) {
-      return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
-    }
-    if (!queues[chatId] || queues[chatId].length === 0) {
-      return bot.sendMessage(chatId, '📭 صف در حال حاضر خالی است.' + signature);
-    }
-    const nextUser = queues[chatId].shift();
-    bot.sendMessage(chatId, `🎙️ نوبت ${nextUser.first_name} است.` + signature);
-    return;
-  }
-
-  // ❌ remove (مثلاً remove 2)
-  if (/^\/?remove\s+\d+$/i.test(text)) {
-    if (!allowedOwners.includes(senderId)) {
-      return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
-    }
-    const index = parseInt(text.replace(/[^0-9]/g, ''), 10) - 1;
-    if (!queues[chatId] || index < 0 || index >= queues[chatId].length) {
-      return bot.sendMessage(chatId, '❌ شماره نوبت معتبر نیست یا صف خالی است.' + signature);
-    }
-    const removed = queues[chatId].splice(index, 1)[0];
-    bot.sendMessage(chatId, `🗑️ نوبت شماره ${index + 1} (${removed.first_name}) از صف حذف شد.` + signature);
-    return;
-  }
-
-  // 🧹 clear
-  if (/^\/?clear$/i.test(text)) {
-    if (!allowedOwners.includes(senderId)) {
-      return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
-    }
-    queues[chatId] = [];
-    bot.sendMessage(chatId, '🧹 صف نوبت ققنوس پاک شد.' + signature);
-    return;
-  }
-
-  // 📜 list
-  if (/^\/?list$/i.test(text)) {
-    const queue = queues[chatId] || [];
-    if (queue.length === 0) {
-      return bot.sendMessage(chatId, '📭 صف فعلاً خالی است.' + signature);
-    }
-    const list = queue.map((u, i) => `${i + 1}. ${u.first_name}`).join('\n');
-    bot.sendMessage(chatId, `📜 فهرست نوبت‌ها:\n\n${list}` + signature);
-    return;
-  }
-});
-// 💬 پاسخ به وقتی کسی گفت "ربات"
-bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
+  // 💬 پاسخ به وقتی کسی گفت "ربات"
   if (msg.text && /ر\s*[\u200c]?\s*با\s*[\u200c]?\s*ت/.test(msg.text.trim())) {
     bot.sendMessage(chatId, 'جانم 😊 نوبت می‌خوای؟' + signature);
   }
 });
 
-console.log('✅ ربات با موفقیت راه‌اندازی شد.');
+// 🎤 دستور "next"
+bot.onText(/next/, (msg) => {
+  const chatId = msg.chat.id;
