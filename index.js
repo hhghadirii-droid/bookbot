@@ -1,7 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 
-// 🧩 خواندن توکن از متغیر محیطی (امن)
+// 🧩 خواندن توکن از متغیر محیطی
 const token = process.env.TOKEN;
 if (!token) {
   console.error('❌ خطا: متغیر محیطی TOKEN تنظیم نشده است.');
@@ -23,7 +23,7 @@ let allowedGroups = JSON.parse(fs.readFileSync(allowedGroupsFile, 'utf8'));
 // 📋 صف هر گروه
 const queues = {};
 
-// ✍️ امضای انتهای پیام‌ها
+//✍️ امضای انتهای پیام‌ها
 const signature = '\n\n—🕊️ گروه ادبی ققنوس ';
 
 // 📥 بررسی مجاز بودن گروه
@@ -63,68 +63,61 @@ bot.on('message', async (msg) => {
       queues[chatId].push(msg.from);
       bot.sendMessage(chatId, `✅ ${msg.from.first_name} به صف نوبت اضافه شد.` + signature);
     }
-  }
-});
-
-// 🎤 دستور /next
-bot.onText(/\/next/, (msg) => {
-  const chatId = msg.chat.id;
-  const senderId = msg.from.id;
-
-  if (!allowedOwners.includes(senderId)) {
-    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+    return;
   }
 
-  if (!queues[chatId] || queues[chatId].length === 0) {
-    return bot.sendMessage(chatId, '📭 صف در حال حاضر خالی است.' + signature);
+  // 📦 متن پیام کاربر
+  const text = msg.text?.trim();
+
+  if (!text) return;
+
+  // 🎤 next
+  if (/^\/?next$/i.test(text)) {
+    if (!allowedOwners.includes(senderId)) {
+      return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+    }
+    if (!queues[chatId] || queues[chatId].length === 0) {
+      return bot.sendMessage(chatId, '📭 صف در حال حاضر خالی است.' + signature);
+    }
+    const nextUser = queues[chatId].shift();
+    bot.sendMessage(chatId, `🎙️ نوبت ${nextUser.first_name} است.` + signature);
+    return;
   }
 
-  const nextUser = queues[chatId].shift();
-  bot.sendMessage(chatId, `🎙️ نوبت ${nextUser.first_name} است.` + signature);
-});
-
-// ❌ حذف از صف با شماره (مثلاً /remove 2)
-bot.onText(/\/remove (\d+)/, (msg, match) => {
-  const chatId = msg.chat.id;
-  const senderId = msg.from.id;
-
-  if (!allowedOwners.includes(senderId)) {
-    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+  // ❌ remove (مثلاً remove 2)
+  if (/^\/?remove\s+\d+$/i.test(text)) {
+    if (!allowedOwners.includes(senderId)) {
+      return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+    }
+    const index = parseInt(text.replace(/[^0-9]/g, ''), 10) - 1;
+    if (!queues[chatId] || index < 0 || index >= queues[chatId].length) {
+      return bot.sendMessage(chatId, '❌ شماره نوبت معتبر نیست یا صف خالی است.' + signature);
+    }
+    const removed = queues[chatId].splice(index, 1)[0];
+    bot.sendMessage(chatId, `🗑️ نوبت شماره ${index + 1} (${removed.first_name}) از صف حذف شد.` + signature);
+    return;
   }
 
-  const index = parseInt(match[1], 10) - 1;
-  if (!queues[chatId] || index < 0 || index >= queues[chatId].length) {
-    return bot.sendMessage(chatId, '❌ شماره نوبت معتبر نیست یا صف خالی است.' + signature);
+  // 🧹 clear
+  if (/^\/?clear$/i.test(text)) {
+    if (!allowedOwners.includes(senderId)) {
+      return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+    }
+    queues[chatId] = [];
+    bot.sendMessage(chatId, '🧹 صف نوبت ققنوس پاک شد.' + signature);
+    return;
   }
 
-  const removed = queues[chatId].splice(index, 1)[0];
-  bot.sendMessage(chatId, `🗑️ نوبت شماره ${index + 1} (${removed.first_name}) از صف حذف شد.` + signature);
-});
-
-// 🧹 پاک کردن کل صف
-bot.onText(/\/clear/, (msg) => {
-  const chatId = msg.chat.id;
-  const senderId = msg.from.id;
-
-  if (!allowedOwners.includes(senderId)) {
-    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+  // 📜 list
+  if (/^\/?list$/i.test(text)) {
+    const queue = queues[chatId] || [];
+    if (queue.length === 0) {
+      return bot.sendMessage(chatId, '📭 صف فعلاً خالی است.' + signature);
+    }
+    const list = queue.map((u, i) => `${i + 1}. ${u.first_name}`).join('\n');
+    bot.sendMessage(chatId, `📜 فهرست نوبت‌ها:\n\n${list}` + signature);
+    return;
   }
-
-  queues[chatId] = [];
-  bot.sendMessage(chatId, '🧹 صف نوبت ققنوس پاک شد.' + signature);
-});
-
-// 📜 نمایش صف
-bot.onText(/\/list/, (msg) => {
-  const chatId = msg.chat.id;
-  const queue = queues[chatId] || [];
-
-  if (queue.length === 0) {
-    return bot.sendMessage(chatId, '📭 صف فعلاً خالی است.' + signature);
-  }
-
-  const list = queue.map((u, i) => `${i + 1}. ${u.first_name}`).join('\n');
-  bot.sendMessage(chatId, `📜 فهرست نوبت‌ها:\n\n${list}` + signature);
 });
 
 console.log('✅ ربات با موفقیت راه‌اندازی شد.');
