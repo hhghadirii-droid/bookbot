@@ -119,5 +119,12 @@ bot.on('message', async (msg) => {
     return;
   }
 });
+// 💬 پاسخ به وقتی کسی گفت "ربات"
+bot.on('message', (msg) => {
+  const chatId = msg.chat.id;
+  if (msg.text && /ر\s*[\u200c]?\s*با\s*[\u200c]?\s*ت/.test(msg.text.trim())) {
+    bot.sendMessage(chatId, 'جانم 😊 نوبت می‌خوای؟' + signature);
+  }
+});
 
 console.log('✅ ربات با موفقیت راه‌اندازی شد.');
