@@ -10,7 +10,7 @@ if (!token) {
 
 const bot = new TelegramBot(token, { polling: true });
 
-// 🔒 آیدی عددی مدیران مجاز
+// 🔒 آیدی عددی مدیران اصلی (فقط برای ثبت گروه مجاز)
 const allowedOwners = [89603350, 5096982033];
 
 // 📁 فایل ذخیره گروه‌های مجاز
@@ -73,13 +73,24 @@ bot.on('message', async (msg) => {
   }
 });
 
+// 🛠️ تابع کمکی بررسی ادمین بودن کاربر
+async function isAdmin(chatId, userId) {
+  try {
+    const admins = await bot.getChatAdministrators(chatId);
+    return admins.some(a => a.user.id === userId);
+  } catch (e) {
+    console.error('خطا در بررسی ادمین:', e);
+    return false;
+  }
+}
+
 // 🎤 دستور /next
-bot.onText(/\/next/, (msg) => {
+bot.onText(/\/next/, async (msg) => {
   const chatId = msg.chat.id;
   const senderId = msg.from.id;
 
-  if (!allowedOwners.includes(senderId)) {
-    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+  if (!await isAdmin(chatId, senderId)) {
+    return bot.sendMessage(chatId, '🚫 فقط ادمین‌های گروه مجاز به اجرای این دستور هستند.' + signature);
   }
 
   if (!queues[chatId] || queues[chatId].length === 0) {
@@ -91,12 +102,12 @@ bot.onText(/\/next/, (msg) => {
 });
 
 // ❌ حذف از صف با شماره (مثلاً /remove 2)
-bot.onText(/\/remove (\d+)/, (msg, match) => {
+bot.onText(/\/remove (\d+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const senderId = msg.from.id;
 
-  if (!allowedOwners.includes(senderId)) {
-    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+  if (!await isAdmin(chatId, senderId)) {
+    return bot.sendMessage(chatId, '🚫 فقط ادمین‌های گروه مجاز به اجرای این دستور هستند.' + signature);
   }
 
   const index = parseInt(match[1], 10) - 1;
@@ -109,12 +120,12 @@ bot.onText(/\/remove (\d+)/, (msg, match) => {
 });
 
 // 🧹 پاک کردن کل صف
-bot.onText(/\/clear/, (msg) => {
+bot.onText(/\/clear/, async (msg) => {
   const chatId = msg.chat.id;
   const senderId = msg.from.id;
 
-  if (!allowedOwners.includes(senderId)) {
-    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+  if (!await isAdmin(chatId, senderId)) {
+    return bot.sendMessage(chatId, '🚫 فقط ادمین‌های گروه مجاز به اجرای این دستور هستند.' + signature);
   }
 
   queues[chatId] = [];
