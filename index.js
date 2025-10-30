@@ -26,13 +26,15 @@ const queues = {};
 // ✍️ امضای انتهای پیام‌ها
 const signature = '\n\n—🕊️ گروه ادبی ققنوس ';
 
-// 📥 بررسی مجاز بودن گروه
+// 📥 بررسی مجاز بودن گروه و مدیریت پیام‌ها
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const senderId = msg.from.id;
+  const text = msg.text;
 
   if (!msg.chat.type.endsWith('group')) return;
 
+  // ثبت گروه مجاز
   if (!allowedGroups.includes(chatId)) {
     try {
       const admins = await bot.getChatAdministrators(chatId);
@@ -53,7 +55,7 @@ bot.on('message', async (msg) => {
   }
 
   // 🎙️ اضافه شدن به صف با پیام "نوبت می‌خوام"
-  if (msg.text && /نوبت\s*[\u200c]?\s*می\s*[\u200c]?\s*خوام/.test(msg.text.trim())) {
+  if (text && /نوبت\s*[\u200c]?\s*می\s*[\u200c]?\s*خوام/.test(text.trim())) {
     if (!queues[chatId]) queues[chatId] = [];
 
     const alreadyInQueue = queues[chatId].some(u => u.id === senderId);
@@ -65,13 +67,71 @@ bot.on('message', async (msg) => {
     }
   }
 
-  // 💬 پاسخ به وقتی کسی گفت "ربات"
-  if (msg.text && msg.text.replace(/\s|‌/g, '').includes('ربات')) {
-  bot.sendMessage(chatId, 'جانم 😊 نوبت می‌خوای؟' + signature);
-}
-
+  // 💬 پاسخ وقتی کسی گفت "ربات"
+  if (text && text.replace(/[\s‌]/g, '').includes('ربات')) {
+    bot.sendMessage(chatId, 'جانم 😊 نوبت می‌خوای؟' + signature);
+  }
 });
 
-// 🎤 دستور "next"
-bot.onText(/next/, (msg) => {
+// 🎤 دستور /next
+bot.onText(/\/next/, (msg) => {
   const chatId = msg.chat.id;
+  const senderId = msg.from.id;
+
+  if (!allowedOwners.includes(senderId)) {
+    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+  }
+
+  if (!queues[chatId] || queues[chatId].length === 0) {
+    return bot.sendMessage(chatId, '📭 صف در حال حاضر خالی است.' + signature);
+  }
+
+  const nextUser = queues[chatId].shift();
+  bot.sendMessage(chatId, `🎙️ نوبت ${nextUser.first_name} است.` + signature);
+});
+
+// ❌ حذف از صف با شماره (مثلاً /remove 2)
+bot.onText(/\/remove (\d+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const senderId = msg.from.id;
+
+  if (!allowedOwners.includes(senderId)) {
+    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+  }
+
+  const index = parseInt(match[1], 10) - 1;
+  if (!queues[chatId] || index < 0 || index >= queues[chatId].length) {
+    return bot.sendMessage(chatId, '❌ شماره نوبت معتبر نیست یا صف خالی است.' + signature);
+  }
+
+  const removed = queues[chatId].splice(index, 1)[0];
+  bot.sendMessage(chatId, `🗑️ نوبت شماره ${index + 1} (${removed.first_name}) از صف حذف شد.` + signature);
+});
+
+// 🧹 پاک کردن کل صف
+bot.onText(/\/clear/, (msg) => {
+  const chatId = msg.chat.id;
+  const senderId = msg.from.id;
+
+  if (!allowedOwners.includes(senderId)) {
+    return bot.sendMessage(chatId, '🚫 فقط مدیران ققنوس مجاز به اجرای این دستور هستند.' + signature);
+  }
+
+  queues[chatId] = [];
+  bot.sendMessage(chatId, '🧹 صف نوبت ققنوس پاک شد.' + signature);
+});
+
+// 📜 نمایش صف
+bot.onText(/\/list/, (msg) => {
+  const chatId = msg.chat.id;
+  const queue = queues[chatId] || [];
+
+  if (queue.length === 0) {
+    return bot.sendMessage(chatId, '📭 صف فعلاً خالی است.' + signature);
+  }
+
+  const list = queue.map((u, i) => `${i + 1}. ${u.first_name}`).join('\n');
+  bot.sendMessage(chatId, `📜 فهرست نوبت‌ها:\n\n${list}` + signature);
+});
+
+console.log('✅ ربات با موفقیت راه‌اندازی شد.');
